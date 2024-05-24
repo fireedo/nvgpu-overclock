@@ -1,3 +1,6 @@
+# Copyright 1999-2024 edo hikmahtiar <fireedo>
+# Distributed under the terms of the GNU General Public License v2
+
 import sys
 import os
 import subprocess

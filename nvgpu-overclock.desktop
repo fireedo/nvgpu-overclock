@@ -2,7 +2,7 @@
 Version=1.0
 Name=NVIDIA GPU Overclocking
 Comment=Overclock your NVIDIA GPU
-Exec=pkexec python3 /usr/share/nvgpu-overclock/overclock_gui.py
+Exec=nvgpu-overclock
 Icon=nvidia
 Terminal=false
 Type=Application

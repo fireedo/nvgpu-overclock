@@ -144,13 +144,14 @@ nvmlDeviceSetMemClkVfOffset(myGPU, {mem_offset})
 nvmlDeviceSetPowerManagementLimit(myGPU, {power_limit})
 nvmlShutdown()
 """
-            temp_script_path = "/home/edo/nvgpu-overclock/tmp/temp_overclock.py"
+            temp_script_path = "/tmp/temp_overclock.py"
             with open(temp_script_path, "w") as f:
                 f.write(script_content)
             
             os.chmod(temp_script_path, 0o755)
 
-            result = subprocess.run(["pkexec", "/home/edo/nvgpu-overclock/run_overclock.sh"], capture_output=True, text=True)
+            # Run the script using pkexec for root privileges
+            result = subprocess.run(["pkexec", "python3", temp_script_path], capture_output=True, text=True)
             if result.returncode == 0:
                 QMessageBox.information(self, "Success", "Overclock settings applied successfully")
             else:

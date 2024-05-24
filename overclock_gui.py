@@ -1,6 +1,3 @@
-# Copyright 1999-2024 edo hikmahtiar <fireedo>
-# Distributed under the terms of the GNU General Public License v2
-
 import sys
 import os
 import subprocess
@@ -51,6 +48,17 @@ class OverclockApp(QWidget):
         self.default_power_limit_checkbox.stateChanged.connect(self.update_power_limit)
         layout.addWidget(self.default_power_limit_checkbox)
 
+        self.fan_speed_label = QLabel('Fan Speed (%):', self)
+        layout.addWidget(self.fan_speed_label)
+        self.fan_speed_combo = QComboBox(self)
+        self.fan_speed_combo.addItem("Default")
+        for i in range(10, 110, 10):
+            self.fan_speed_combo.addItem(f"{i}%")
+        layout.addWidget(self.fan_speed_combo)
+        self.manual_fan_control_checkbox = QCheckBox('Enable manual fan control', self)
+        self.manual_fan_control_checkbox.stateChanged.connect(self.update_fan_control)
+        layout.addWidget(self.manual_fan_control_checkbox)
+
         self.apply_button = QPushButton('Apply Overclock', self)
         self.apply_button.clicked.connect(self.apply_overclock)
         layout.addWidget(self.apply_button)
@@ -76,7 +84,6 @@ class OverclockApp(QWidget):
             
             for line in result.stdout.split('\n'):
                 if 'Default Power Limit' in line:
-                    # Extract the value and convert it to an integer in mW
                     value_str = line.split(':')[1].strip().split(' ')[0]
                     return int(float(value_str) * 1000)  # Convert W to mW
         except Exception as e:
@@ -84,11 +91,9 @@ class OverclockApp(QWidget):
             return None
 
     def get_default_gpu_offset(self, gpu_index):
-        # You can set this value to the known default GPU offset if applicable
         return 0
 
     def get_default_mem_offset(self, gpu_index):
-        # You can set this value to the known default Memory offset if applicable
         return 0
 
     def update_offsets(self):
@@ -115,6 +120,9 @@ class OverclockApp(QWidget):
         else:
             self.power_limit_input.clear()
 
+    def update_fan_control(self):
+        self.fan_speed_combo.setEnabled(self.manual_fan_control_checkbox.isChecked())
+
     def apply_overclock(self):
         try:
             gpu_index = self.gpu_index_combo.currentData()
@@ -129,7 +137,6 @@ class OverclockApp(QWidget):
             else:
                 power_limit = int(self.power_limit_input.text())
 
-            # Validate power limit
             gpu_handle = nvmlDeviceGetHandleByIndex(gpu_index)
             min_power_limit = nvmlDeviceGetPowerManagementLimitConstraints(gpu_handle)[0]
             max_power_limit = nvmlDeviceGetPowerManagementLimitConstraints(gpu_handle)[1]
@@ -137,7 +144,16 @@ class OverclockApp(QWidget):
             if power_limit < min_power_limit or power_limit > max_power_limit:
                 QMessageBox.critical(self, "Error", f"Power limit must be between {min_power_limit} mW and {max_power_limit} mW")
                 return
-            
+
+            fan_speed_script = ""
+            if self.manual_fan_control_checkbox.isChecked():
+                fan_speed_text = self.fan_speed_combo.currentText()
+                if fan_speed_text == "Default":
+                    fan_speed_script = "nvmlDeviceSetDefaultFanSpeed(myGPU)\n"
+                else:
+                    fan_speed = int(fan_speed_text.replace('%', ''))
+                    fan_speed_script = f"nvmlDeviceSetGpuFanSpeed(myGPU, {fan_speed})\n"
+
             script_content = f"""
 from pynvml import *
 nvmlInit()
@@ -145,6 +161,7 @@ myGPU = nvmlDeviceGetHandleByIndex({gpu_index})
 nvmlDeviceSetGpcClkVfOffset(myGPU, {gpu_offset})
 nvmlDeviceSetMemClkVfOffset(myGPU, {mem_offset})
 nvmlDeviceSetPowerManagementLimit(myGPU, {power_limit})
+{fan_speed_script}
 nvmlShutdown()
 """
             temp_script_path = "/tmp/temp_overclock.py"
